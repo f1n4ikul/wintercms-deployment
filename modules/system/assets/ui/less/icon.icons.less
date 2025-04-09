@@ -1,0 +1,15 @@
+each(.fa-icons(), {
+    @scope: ~':is(.icon-@{key},.wn-icon-@{key},.oc-icon-@{key})';
+
+    @{scope}:before {
+        content: @value;
+    }
+});
+
+each(.fa-brand-icons(), {
+    @scope: ~':is(.icon-@{key},.wn-icon-@{key},.oc-icon-@{key})';
+    @{scope}:before {
+        font-family: 'Font Awesome 6 Brands';
+        content: @value;
+    }
+});

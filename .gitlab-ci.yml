@@ -1,0 +1,29 @@
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  DOCKER_DRIVER: overlay2
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+
+build:
+  stage: build
+  script:
+    - docker build -t $IMAGE_TAG .
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker push $IMAGE_TAG
+
+test:
+  stage: test
+  script:
+    - docker run --rm $IMAGE_TAG php artisan config:cache
+    - docker run --rm $IMAGE_TAG php artisan route:list
+
+deploy:
+  stage: deploy
+  script:
+    - echo "Deploying to production..."
+    # Здесь можно добавить команды для деплоя, например, через SSH или Kubernetes
+  only:
+    - main
