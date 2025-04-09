@@ -1,116 +1,282 @@
-<p align="center">
-    <img src="https://github.com/wintercms/winter/raw/develop/.github/assets/Github%20Banner.png?raw=true" alt="Winter CMS Logo" width="100%" />
-</p>
+# Развертывание проекта Winter CMS с использованием Docker
 
-[Winter](https://wintercms.com) is a free, open-source content management system based on the [Laravel](https://laravel.com) PHP framework. Developers and agencies all around the world rely upon Winter for its quick prototyping and development, safe and secure codebase and dedication to simplicity.
+В документации приведены все необходимые шаги для успешного запуска проекта.
 
-No matter how large or small your project is, Winter provides a rich development environment, regardless of your level of experience.
+---
 
-[![Version](https://img.shields.io/github/v/release/wintercms/winter?sort=semver&style=flat-square)](https://github.com/wintercms/winter/releases)
-[![Tests](https://img.shields.io/github/actions/workflow/status/wintercms/winter/tests.yml?branch=develop&label=tests&style=flat-square)](https://github.com/wintercms/winter/actions)
-[![License](https://img.shields.io/github/license/wintercms/winter?label=open%20source&style=flat-square)](https://packagist.org/packages/wintercms/winter)
-[![Discord](https://img.shields.io/badge/discord-join-purple?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/D5MFSPH6Ux)
+## Этапы развертывания
 
-## Installing Winter
+### 1. Клонирование репозитория
+Необходимо клонировать репозиторий Winter CMS с использованием команды:
 
-Winter can be installed in several ways for both new users and experienced developers - see our [Installation page](https://wintercms.com/install) for more information.
-
-### Quick start with Composer
-
-For advanced users, run the following command in your terminal to install Winter via Composer:
-
-```shell
-composer create-project wintercms/winter example.com "dev-develop"
+```bash
+git clone https://github.com/wintercms/winter.git
+cd winter
 ```
 
-Run the following command with the folder created by the previous command to generate an environment file which will contain your configuration settings:
 
-```shell
-php artisan winter:env
+---
+
+### 2. Создание файла `.env`
+Необходимо создать файл `.env` на основе примера `.env.example`:
+
+```bash
+cp .env.example .env
 ```
 
-After configuring your installation, you can run the following command to run the database migrations and automatically create an administrator account with the username `admin`. The password of this account will be automatically generated and displayed in your terminal.
+После создания файла необходимо открыть его в текстовом редакторе и проверить параметры базы данных. Пример конфигурации:
 
-```shell
-php artisan winter:up
+```env
+DB_CONNECTION=mysql
+DB_HOST=db
+DB_PORT=3306
+DB_DATABASE=wintercms
+DB_USERNAME=root
+DB_PASSWORD=secret
 ```
 
-## Learning Winter
+---
 
-The best place to learn Winter is by [reading the documentation](https://wintercms.com/docs) or [following some tutorials](https://wintercms.com/blog/category/tutorials). You can also join the maintenance team and our active community on [Discord](https://discord.gg/D5MFSPH6Ux) who are always willing to help out with questions.
+### 3. Проверка файла `docker-compose.yml`
+Необходимо убедиться, что файл `docker-compose.yml` содержит правильные настройки. Пример содержимого:
 
-## Development team
+```yaml
+version: '3.8'
 
-Winter was forked from October CMS in March 2021 due to a difference in open source management philosophies between the core maintainer team and the two founders of October.
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wintercms-app
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html
+    environment:
+      - DB_HOST=db
+      - DB_DATABASE=wintercms
+      - DB_USERNAME=root
+      - DB_PASSWORD=secret
+    depends_on:
+      - db
 
-The development of Winter is lead by [Luke Towers](https://luketowers.ca/), along with many wonderful people that dedicate their time to help support and grow the community. The [Frostbyte Foundation](mailto:hello@frostbytefoundation.org) provides an organisational backing for the project and the continued development of Winter, its plugins and themes and its ecosystem.
+  db:
+    image: mysql:8.0
+    container_name: wintercms-db
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: wintercms
+    volumes:
+      - db_data:/var/lib/mysql
 
-<table>
-  <tr>
-    <td align="center"><a href="https://github.com/luketowers"><img src="https://avatars.githubusercontent.com/u/7253840?v=3" width="100px;" alt="Luke Towers"/><br /><sub><b>Luke Towers</b></sub></a></td>
-    <td align="center"><a href="https://github.com/bennothommo"><img src="https://avatars.githubusercontent.com/u/15900351?v=3" width="100px;" alt="Ben Thomson"/><br /><sub><b>Ben Thomson</b></sub></a></td>
-    <td align="center"><a href="https://github.com/mjauvin"><img src="https://avatars.githubusercontent.com/u/2013630?v=3" width="100px;" alt="Marc Jauvin"/><br /><sub><b>Marc Jauvin</b></sub></a></td>
-    <td align="center"><a href="https://github.com/jaxwilko"><img src="https://avatars.githubusercontent.com/u/31214002?v=4" width="100px;" alt="Jack Wilkinson"/><br /><sub><b>Jack Wilkinson</b></sub></a></td>
-  </tr>
-</table>
+volumes:
+  db_data:
+```
 
-## Foundation library
+---
 
-Winter is built on top of the wildly-popular [Laravel](https://laravel.com) framework for PHP, with the in-house [Storm](https://github.com/wintercms/storm) library as a buffer between the Laravel framework and the Winter project, to minimize breaking changes and improve stability.
+### 4. Создание файла `Dockerfile`
+Необходимо создать файл `Dockerfile` в корне проекта со следующим содержимым:
 
-## Getting in touch
+```dockerfile
+# Базовый образ
+FROM php:8.2-apache
 
-You can get in touch with the maintainer team using the following mediums:
+# Установка необходимых зависимостей
+RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
+    libzip-dev \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    libonig-dev \
+    libxml2-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install gd pdo_mysql zip mbstring xml
 
-* [Follow us on Twitter](https://twitter.com/usewintercms) for announcements and updates.
-* [Join us on Discord](https://discord.gg/D5MFSPH6Ux) to chat with us.
+# Установка Composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-## Contributing
+# Настройка Apache
+COPY . /var/www/html/
+RUN chown -R www-data:www-data /var/www/html \
+    && a2enmod rewrite
 
-Before contributing issues or pull requests, be sure to review the [Contributing Guidelines](https://github.com/wintercms/.github/blob/master/CONTRIBUTING.md) first.
+# Копирование конфигурации Apache
+COPY apache.conf /etc/apache2/sites-available/000-default.conf
 
-### Coding standards
+# Установка прав доступа
+RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-Please follow the following guides and code standards:
+# Прослушивание HTTP-интерфейса
+EXPOSE 80
 
-* [PSR 4 Coding Standards](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-4-autoloader.md)
-* [PSR 2 Coding Style Guide](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-2-coding-style-guide.md)
-* [PSR 1 Coding Standards](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-1-basic-coding-standard.md)
+# Запуск Apache
+CMD ["apache2-foreground"]
+```
 
-### Code of conduct
+---
 
-In order to ensure that the Winter community is welcoming to all, please review and abide by the [Code of Conduct](https://github.com/wintercms/.github/blob/master/CODE_OF_CONDUCT.md).
+### 5. Создание файла `apache.conf`
+Необходимо создать файл `apache.conf` в корне проекта со следующим содержимым:
 
-## Sponsors
+```apache
+<VirtualHost *:80>
+    DocumentRoot /var/www/html
 
-Winter CMS development is financially supported by the generosity of the following sponsors:
+    <Directory /var/www/html>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
 
-### Organizations
+    ErrorLog ${APACHE_LOG_DIR}/error.log
+    CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
+```
+---
 
-[![Route4Me logo, Route Planning and Route Mapping](https://raw.githubusercontent.com/wintercms/winter/develop/.github/assets/sponsor-route4me.png)](https://route4me.com/?utm_source=wintercms)
+### 6. Создание файла `.gitlab-ci.yml`
+Необходимо создать файл `.gitlab-ci.yml` в корне проекта со следующим содержимым:
 
-Route4Me is a [Premium Sponsor to the Winter CMS Open Collective](https://opencollective.com/wintercms).
+```yaml
+stages:
+  - build
+  - test
+  - deploy
 
-[![Froala logo](https://froala.com/wp-content/uploads/2019/10/froala.svg)](https://froala.com/wysiwyg-editor/)
+variables:
+  DOCKER_DRIVER: overlay2
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
 
-Froala provides a perpetual, Enterprise license to Winter CMS which allows us and our users to use the Froala WYSIWYG Editor in Winter CMS powered projects.
+build:
+  stage: build
+  script:
+    - docker build -t $IMAGE_TAG .
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker push $IMAGE_TAG
 
-Big thanks to our sponsors on OpenCollective:
+test:
+  stage: test
+  script:
+    - docker run --rm $IMAGE_TAG php artisan config:cache
+    - docker run --rm $IMAGE_TAG php artisan route:list
 
-- [FrogeHost](https://froge.host/?utm_source=wintercms)
+deploy:
+  stage: deploy
+  script:
+    - echo "Deploying to production..."
+    # Здесь можно добавить команды для деплоя, например, через SSH или Kubernetes
+  only:
+    - main
+```
 
-### Individuals
+---
 
-Big thanks to our sponsors on OpenCollective:
+### 7. Сборка и запуск Docker-контейнеров
+Необходимо выполнить сборку Docker-образов с помощью команды:
 
-- Orville
+```bash
+docker-compose up --build
+```
 
-If you would like to have your name, company and link added to this list and support open-source development, feel free to make a donation to our [Open Collective](https://opencollective.com/wintercms).
+---
 
-## License
+### 8. Установка зависимостей Composer
+После запуска контейнеров необходимо установить зависимости PHP внутри контейнера:
 
-The Winter platform is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+docker exec -it wintercms-app composer install
+```
 
-## Security vulnerabilities
+---
 
-Please review [our security policy](https://github.com/wintercms/winter/security/policy) on how to report security vulnerabilities.
+### 9. Генерация ключа приложения
+Необходимо сгенерировать ключ приложения Laravel/Winter CMS:
+
+```bash
+docker exec -it wintercms-app php artisan key:generate
+```
+
+---
+
+### 10. Выполнение миграций базы данных
+Необходимо выполнить миграции для базы данных MySQL:
+
+```bash
+docker exec -it wintercms-app php artisan migrate
+```
+
+---
+
+### 11. Очистка кэша
+Необходимо очистить кэш Laravel, чтобы применить изменения:
+
+```bash
+docker exec -it wintercms-app php artisan config:clear
+docker exec -it wintercms-app php artisan cache:clear
+docker exec -it wintercms-app php artisan view:clear
+```
+
+---
+
+### 12. Проверка работы проекта
+Необходимо открыть браузер и перейти по адресу:
+
+```
+http://localhost:8080
+```
+
+Если все настроено правильно, отобразится страница Winter CMS.
+
+---
+
+## Дополнительные команды
+
+### Остановка контейнеров
+Для остановки контейнеров необходимо выполнить:
+
+```bash
+docker-compose down
+```
+
+### Просмотр логов контейнеров
+Для просмотра логов контейнеров необходимо использовать:
+
+```bash
+docker logs wintercms-app
+docker logs wintercms-db
+```
+
+### Перезапуск контейнеров
+Для перезапуска контейнеров необходимо выполнить:
+
+```bash
+docker-compose restart
+```
+
+---
+
+## Решение распространенных проблем
+
+### 1. Ошибка "Permission denied"
+Если возникает ошибка с правами доступа к файлам (например, `storage/logs/system.log`), необходимо выполнить следующие команды:
+
+```bash
+docker exec -it wintercms-app chmod -R 775 storage/cms/cache storage/framework/cache bootstrap/cache storage
+docker exec -it wintercms-app chown -R www-data:www-data storage/cms/cache storage/framework/cache bootstrap/cache storage
+```
+
+### 2. Проблемы с базой данных
+Если база данных не создается автоматически:
+1. Подключиться к контейнеру MySQL:
+   ```bash
+   docker exec -it wintercms-db mysql -u root -p
+   ```
+2. Ввести пароль (`secret`).
+3. Создать базу данных вручную:
+   ```sql
+   CREATE DATABASE wintercms;
+   ```
